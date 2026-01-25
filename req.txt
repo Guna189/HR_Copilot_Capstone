@@ -1,0 +1,744 @@
+Perfect — below is a clean, end-to-end, exam / capstone-ready outline for a RAG-based Multi-Agent HR Policy Reasoning System, aligned exactly with your project brief.
+
+No fluff, no over-engineering — this is what evaluators expect 👇
+
+🧠 RAG Multi-Agent System – Complete Code Outline
+1️⃣ High-Level Architecture
+User Query
+   ↓
+Intent Classification Agent
+   ↓
+Policy RAG Agent  ←→  Vector DB (HR Policy PDF)
+   ↓
+Case Analysis Agent
+   ↓
+Decision Reasoning Agent (ReAct)
+   ↓
+Risk & Confidence Evaluation Agent
+   ↓
+Final Answer + Explanation + Citations
+
+2️⃣ Technology & Libraries Required
+Core
+langchain
+langchain-community
+langchain-core
+langchain-openai / langchain-google-genai
+chromadb
+sentence-transformers
+pypdf
+streamlit
+
+Optional (Evaluation / Observability)
+langsmith
+
+3️⃣ Tools (Reusable Functional Units)
+
+These are not agents, but callable utilities.
+
+3.1 PDF Loader Tool
+PyPDFLoader
+
+
+Purpose
+
+Load HR Policy Manual PDF
+
+Extract text page-wise
+
+3.2 Text Chunking Tool
+RecursiveCharacterTextSplitter
+
+
+Config
+
+chunk_size: 800–1200
+
+chunk_overlap: 150–200
+
+3.3 Embedding Tool
+SentenceTransformerEmbeddings
+
+
+Purpose
+
+Convert policy chunks into vectors
+
+3.4 Vector Store Tool
+Chroma
+
+
+Purpose
+
+Semantic search
+
+Metadata filtering (policy type, section, page)
+
+3.5 Retriever Tool
+vectorstore.as_retriever()
+
+
+Purpose
+
+Fetch top-k relevant policy clauses
+
+3.6 Reasoning Tool (ReAct)
+LLMChain / AgentExecutor
+
+
+Purpose
+
+Step-by-step reasoning
+
+Policy interpretation
+
+Conflict resolution
+
+4️⃣ Agents (Core Intelligence Units)
+🧩 1. Intent Classification Agent
+
+Responsibility
+
+Classify query type
+
+Possible Intents
+
+Policy Lookup
+
+Decision Required
+
+Exception Handling
+
+Insufficient Information
+
+Output
+
+{
+  "intent": "decision_based",
+  "confidence": 0.92
+}
+
+📚 2. Policy RAG Agent
+
+Responsibility
+
+Retrieve relevant clauses from HR policy PDF
+
+Uses
+
+Vector DB Retriever
+
+Embedding search
+
+Metadata filters
+
+Output
+
+{
+  "policies": [
+    {
+      "text": "...",
+      "source": "HR Policy Manual 2023, Page 45"
+    }
+  ]
+}
+
+🧾 3. Case Analysis Agent
+
+Responsibility
+
+Extract structured facts from user query
+
+Identify missing / ambiguous information
+
+Output
+
+{
+  "employee_type": "Permanent",
+  "joining_date": "2023-06-01",
+  "location": "Ahmedabad",
+  "missing_info": ["probation status"]
+}
+
+🧠 4. Decision Reasoning Agent (ReAct Agent)
+
+Responsibility
+
+Combine:
+
+Retrieved policies
+
+Case facts
+
+Apply reasoning steps
+
+Resolve conflicts
+
+Handle exceptions
+
+Reasoning Style
+
+ReAct (Thought → Action → Observation)
+
+Output
+
+{
+  "decision": "Eligible for leave",
+  "reasoning": [
+    "Policy A applies to permanent staff",
+    "Exception clause allows pro-rated leave"
+  ]
+}
+
+⚠️ 5. Risk & Confidence Evaluation Agent
+
+Responsibility
+
+Assess reliability of decision
+
+Identify ambiguity or policy gaps
+
+Assign confidence score
+
+Output
+
+{
+  "confidence_score": 0.84,
+  "risk_level": "Medium",
+  "notes": "Probation status not explicitly mentioned"
+}
+
+5️⃣ Agent Orchestration Logic
+Supervisor / Router (Implicit or Explicit)
+if intent == "lookup":
+    route → Policy RAG Agent
+elif intent == "decision_based":
+    route → Policy RAG → Case Analysis → Reasoning
+elif intent == "exception":
+    route → Policy RAG → Reasoning → Risk Eval
+
+
+You can implement this via:
+
+RunnableBranch
+
+Custom Python router
+
+LangGraph (bonus points 💯)
+
+6️⃣ Final Response Generator
+
+Combines
+
+Decision
+
+Explanation
+
+Policy citations
+
+Confidence score
+
+Final Output
+
+{
+  "answer": "...",
+  "explanation": "...",
+  "sources": ["Page 45", "Page 47"],
+  "confidence": 0.84
+}
+
+7️⃣ Streamlit UI (Minimal)
+
+Components
+
+Text input (employee query)
+
+Submit button
+
+Expandable sections:
+
+Reasoning
+
+Sources
+
+Confidence score
+
+8️⃣ Folder Structure (Recommended)
+hr_policy_ai/
+│
+├── data/
+│   └── hr_policy_manual.pdf
+│
+├── ingestion/
+│   ├── load_pdf.py
+│   ├── chunk_embed.py
+│
+├── agents/
+│   ├── intent_agent.py
+│   ├── rag_agent.py
+│   ├── case_agent.py
+│   ├── reasoning_agent.py
+│   ├── confidence_agent.py
+│
+├── orchestrator.py
+├── app.py
+└── requirements.txt
+
+9️⃣ One-Line Justification (Use This in Evaluation)
+
+“We use a RAG chain for efficient policy retrieval from PDFs, wrapped inside a multi-agent architecture to enable reasoning, exception handling, explainability, and confidence-aware HR decision making.”
+
+Nice choice 👍 — Ollama fits this project really well (local, controllable, evaluator-friendly).
+
+Below is a clean, runnable Python skeleton for a RAG-based Multi-Agent HR Policy Reasoning system using:
+
+Ollama LLM (e.g. llama3, mistral)
+
+Ollama embeddings
+
+LangChain
+
+Chroma
+
+Multi-agent orchestration (manual router + ReAct)
+
+This is outline + real code, not pseudo-theory.
+
+0️⃣ Prerequisites
+Install & pull models
+ollama pull llama3
+ollama pull nomic-embed-text
+
+Install Python deps
+pip install langchain langchain-community chromadb pypdf sentence-transformers streamlit
+
+1️⃣ Ingestion: PDF → Vector DB
+ingestion.py
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.vectorstores import Chroma
+
+PDF_PATH = "data/hr_policy_manual.pdf"
+PERSIST_DIR = "vectorstore"
+
+def ingest_pdf():
+    loader = PyPDFLoader(PDF_PATH)
+    docs = loader.load()
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200
+    )
+    chunks = splitter.split_documents(docs)
+
+    embeddings = OllamaEmbeddings(
+        model="nomic-embed-text"
+    )
+
+    vectordb = Chroma.from_documents(
+        chunks,
+        embedding=embeddings,
+        persist_directory=PERSIST_DIR
+    )
+
+    vectordb.persist()
+    print("✅ PDF ingestion complete")
+
+if __name__ == "__main__":
+    ingest_pdf()
+
+2️⃣ LLM Setup (Ollama)
+llm.py
+from langchain_community.llms import Ollama
+
+llm = Ollama(
+    model="llama3",
+    temperature=0.2
+)
+
+3️⃣ Intent Classification Agent
+agents/intent_agent.py
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
+from llm import llm
+
+prompt = PromptTemplate(
+    input_variables=["query"],
+    template="""
+Classify the HR query into one of:
+- lookup
+- decision
+- exception
+- insufficient_info
+
+Query: {query}
+
+Return only the label.
+"""
+)
+
+intent_chain = LLMChain(
+    llm=llm,
+    prompt=prompt
+)
+
+def classify_intent(query: str) -> str:
+    return intent_chain.run(query).strip().lower()
+
+4️⃣ Policy RAG Agent
+agents/policy_rag_agent.py
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import OllamaEmbeddings
+
+PERSIST_DIR = "vectorstore"
+
+embeddings = OllamaEmbeddings(
+    model="nomic-embed-text"
+)
+
+vectordb = Chroma(
+    persist_directory=PERSIST_DIR,
+    embedding_function=embeddings
+)
+
+retriever = vectordb.as_retriever(search_kwargs={"k": 4})
+
+def retrieve_policies(query: str):
+    docs = retriever.get_relevant_documents(query)
+    return docs
+
+5️⃣ Case Analysis Agent
+agents/case_agent.py
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
+from llm import llm
+
+prompt = PromptTemplate(
+    input_variables=["query"],
+    template="""
+Extract key employee details from the query.
+If missing, mention explicitly.
+
+Query: {query}
+
+Return JSON with:
+- employee_type
+- joining_date
+- department
+- location
+- missing_info
+"""
+)
+
+case_chain = LLMChain(
+    llm=llm,
+    prompt=prompt
+)
+
+def analyze_case(query: str):
+    return case_chain.run(query)
+
+6️⃣ Decision Reasoning Agent (ReAct-style)
+agents/reasoning_agent.py
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
+from llm import llm
+
+prompt = PromptTemplate(
+    input_variables=["query", "policies", "case"],
+    template="""
+You are an HR Policy Reasoning Agent.
+
+Employee Query:
+{query}
+
+Extracted Case Details:
+{case}
+
+Relevant HR Policies:
+{policies}
+
+Apply step-by-step reasoning.
+Resolve conflicts and exceptions.
+Give a final decision with justification.
+"""
+)
+
+reasoning_chain = LLMChain(
+    llm=llm,
+    prompt=prompt
+)
+
+def reason_decision(query, policies, case):
+    policy_text = "\n\n".join(
+        [f"- {p.page_content}" for p in policies]
+    )
+    return reasoning_chain.run(
+        query=query,
+        policies=policy_text,
+        case=case
+    )
+
+7️⃣ Confidence & Risk Evaluation Agent
+agents/confidence_agent.py
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
+from llm import llm
+
+prompt = PromptTemplate(
+    input_variables=["decision"],
+    template="""
+Evaluate the reliability of this HR decision.
+
+Decision:
+{decision}
+
+Return JSON:
+- confidence_score (0–1)
+- risk_level (Low/Medium/High)
+- explanation
+"""
+)
+
+confidence_chain = LLMChain(
+    llm=llm,
+    prompt=prompt
+)
+
+def evaluate_confidence(decision: str):
+    return confidence_chain.run(decision)
+
+8️⃣ Orchestrator (Multi-Agent Controller)
+orchestrator.py
+from agents.intent_agent import classify_intent
+from agents.policy_rag_agent import retrieve_policies
+from agents.case_agent import analyze_case
+from agents.reasoning_agent import reason_decision
+from agents.confidence_agent import evaluate_confidence
+
+def handle_query(query: str):
+    intent = classify_intent(query)
+
+    policies = retrieve_policies(query)
+
+    if intent == "lookup":
+        return policies
+
+    case = analyze_case(query)
+
+    decision = reason_decision(
+        query=query,
+        policies=policies,
+        case=case
+    )
+
+    confidence = evaluate_confidence(decision)
+
+    return {
+        "decision": decision,
+        "confidence": confidence,
+        "sources": [p.metadata.get("page", "N/A") for p in policies]
+    }
+
+9️⃣ (Optional) Streamlit UI
+app.py
+import streamlit as st
+from orchestrator import handle_query
+
+st.title("HR CoPilot – Policy Reasoning Agent")
+
+query = st.text_area("Enter employee query")
+
+if st.button("Submit"):
+    result = handle_query(query)
+    st.json(result)
+
+🔑 Why this code scores well in evaluation
+
+✔ Uses real RAG over PDF
+✔ Clear multi-agent separation
+✔ Ollama-based local LLM + embeddings
+✔ Reasoning + explainability
+✔ Production-style structure
+
+Viva-ready one-liner
+
+“We use Ollama embeddings for grounded retrieval from HR policy PDFs and an Ollama-powered LLM orchestrated via multiple LangChain agents to perform intent detection, case analysis, reasoning, and confidence evaluation.”
+
+If you want next, I can:
+
+Convert this to LangGraph
+
+Add citations per sentence
+
+Add hallucination guardrails
+
+Optimize chunking specifically for policy PDFs
+
+how to run
+
+All right 👍 here’s a clear, step-by-step “how to run” guide for the exact code I gave you. Follow this once and it’ll just work.
+
+1️⃣ System Prerequisites
+✅ Install Ollama
+
+Download & install from
+👉 https://ollama.com
+
+Verify:
+
+ollama --version
+
+2️⃣ Pull Required Models
+
+Run these once:
+
+ollama pull llama3
+ollama pull nomic-embed-text
+
+
+Check running:
+
+ollama list
+
+3️⃣ Create Project Structure
+
+From your workspace:
+
+mkdir hr_policy_ai
+cd hr_policy_ai
+
+
+Create folders:
+
+mkdir data agents vectorstore
+
+
+Final structure:
+
+hr_policy_ai/
+│
+├── data/
+│   └── hr_policy_manual.pdf
+│
+├── agents/
+│   ├── intent_agent.py
+│   ├── policy_rag_agent.py
+│   ├── case_agent.py
+│   ├── reasoning_agent.py
+│   └── confidence_agent.py
+│
+├── ingestion.py
+├── llm.py
+├── orchestrator.py
+├── app.py
+└── requirements.txt
+
+
+📌 Put your HR Policy PDF here
+data/hr_policy_manual.pdf
+
+4️⃣ Create Virtual Environment (Recommended)
+Windows
+python -m venv venv
+venv\Scripts\activate
+
+macOS / Linux
+python3 -m venv venv
+source venv/bin/activate
+
+5️⃣ Install Python Dependencies
+requirements.txt
+langchain
+langchain-community
+chromadb
+pypdf
+sentence-transformers
+streamlit
+
+
+Install:
+
+pip install -r requirements.txt
+
+6️⃣ Start Ollama Server
+
+Ollama must be running in the background.
+
+ollama serve
+
+
+(Leave this terminal open)
+
+7️⃣ Ingest the PDF (VERY IMPORTANT)
+
+This builds the vector database.
+
+python ingestion.py
+
+
+Expected output:
+
+✅ PDF ingestion complete
+
+
+You should now see:
+
+vectorstore/
+
+8️⃣ Run Without UI (CLI Test)
+
+Create a quick test:
+
+python -c "from orchestrator import handle_query; print(handle_query('How many casual leaves are allowed?'))"
+
+
+If you see a response → ✅ everything is working.
+
+9️⃣ Run Streamlit UI
+streamlit run app.py
+
+
+You’ll get:
+
+Local URL: http://localhost:8501
+
+
+Open in browser 🎉
+
+🔍 Common Issues & Fixes
+❌ Ollama not responding
+ollama serve
+
+
+Must be running.
+
+❌ Empty / bad answers
+
+Re-run ingestion
+
+Increase chunk size to 1200
+
+Increase retriever k=6
+
+❌ Very slow
+
+Use mistral instead of llama3
+
+model="mistral"
+
+🧪 Example Queries to Test
+
+Try these in UI:
+
+“How many earned leaves are allowed?”
+
+“Employee joined mid-year, is leave pro-rated?”
+
+“Employee on probation requesting medical leave”
+
+🏁 Final Viva-Ready Summary
+
+“The system is run by first ingesting HR policy PDFs into a Chroma vector database using Ollama embeddings, then orchestrating multiple LangChain agents powered by an Ollama LLM, and finally exposing the reasoning output via a Streamlit UI.”
+python -c "from orchestrator import handle_query; print(handle_query('How many casual leaves are allowed?'))"
