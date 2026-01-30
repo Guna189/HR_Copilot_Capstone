@@ -1,51 +1,34 @@
-# from langchain_chroma import Chroma
-# from langchain_ollama import OllamaEmbeddings
-
-# PERSIST_DIR = "vectorstore"
-
-# embeddings = OllamaEmbeddings(
-#     model="nomic-embed-text"
-# )
-
-# vectordb = Chroma(
-#     persist_directory=PERSIST_DIR,
-#     embedding_function=embeddings
-# )
-
-# retriever = vectordb.as_retriever(
-#     search_type="mmr",
-#     search_kwargs={
-#         "k": 3,
-#         "fetch_k": 12,
-#         "lambda_mult": 0.15
-#     }
-# )
-
-# def retrieve_policies(query: str):
-#     docs = retriever.invoke(query)
-#     return docs
-
-from langchain_chroma import Chroma
+import re
+import chromadb
 from langchain_ollama import OllamaEmbeddings
 from langchain_core.prompts import PromptTemplate
+from langchain_core.documents import Document
 from llm import llm
 
-PERSIST_DIR = "vectorstore"
+# ---------------- CONFIG ----------------
+CHROMA_API_KEY = os.getenv("CHROMA_API_KEY")
+CHROMA_TENANT = os.getenv("CHROMA_TENANT")
+CHROMA_DATABASE = "hr_manual"
+COLLECTION_NAME = "hr_policy_collection"
 
-embeddings = OllamaEmbeddings(model="nomic-embed-text")
+EMBED_MODEL = "nomic-embed-text"
 
-vectordb = Chroma(
-    persist_directory=PERSIST_DIR,
-    embedding_function=embeddings
+# ---------------- EMBEDDINGS ----------------
+embeddings = OllamaEmbeddings(model=EMBED_MODEL)
+
+# ---------------- CHROMA CLOUD CLIENT ----------------
+client = chromadb.HttpClient(
+    host="api.trychroma.com",
+    port=443,
+    ssl=True,
+    headers={"x-chroma-token": CHROMA_API_KEY},
+    tenant=CHROMA_TENANT,
+    database=CHROMA_DATABASE
 )
 
-# Stage 1: broad recall
-broad_retriever = vectordb.as_retriever(
-    search_type="similarity",
-    search_kwargs={"k": 20}
-)
+collection = client.get_collection(COLLECTION_NAME)
 
-# LLM Rerank prompt
+# ---------------- RERANK PROMPT ----------------
 rerank_prompt = PromptTemplate(
     input_variables=["query", "docs"],
     template="""
@@ -64,8 +47,15 @@ Return ONLY their indices as comma-separated numbers.
 
 rerank_chain = rerank_prompt | llm
 
-
+# ---------------- SAFE LLM RERANK ----------------
 def llm_rerank(query, docs, top_n=10):
+    """
+    Reranks documents using LLM.
+    Always safe against hallucinated indices.
+    """
+    if not docs:
+        return []
+
     text = "\n\n".join(
         f"[{i}] {d.page_content}" for i, d in enumerate(docs)
     )
@@ -75,27 +65,49 @@ def llm_rerank(query, docs, top_n=10):
         "docs": text
     })
 
-    indices = [
-        int(i.strip())
-        for i in resp.split(",")
-        if i.strip().isdigit()
-    ]
+    output = resp.content if hasattr(resp, "content") else str(resp)
 
-    return [docs[i] for i in indices[:top_n]]
+    raw_indices = re.findall(r"\d+", output)
 
+    valid_indices = []
+    for i in raw_indices:
+        idx = int(i)
+        if 0 <= idx < len(docs):
+            valid_indices.append(idx)
 
+    if not valid_indices:
+        return docs[:top_n]
+
+    return [docs[i] for i in valid_indices[:top_n]]
+
+# ---------------- CLOUD RETRIEVAL ----------------
 def retrieve_policies(query: str, final_k=5):
-    # Stage 1
-    top20 = broad_retriever.invoke(query)
+    """
+    Retrieval pipeline (Chroma Cloud):
+    1. Vector similarity search
+    2. Convert to LangChain Documents
+    3. LLM reranking
+    4. Return top-k
+    """
 
-    # Stage 2
-    top10 = llm_rerank(query, top20, top_n=10)
+    query_vector = embeddings.embed_query(query)
 
-    # Stage 3 (MMR)
-    final = vectordb.similarity_search_by_vector(
-        embedding=embeddings.embed_query(query),
-        k=final_k,
-        filter=None
+    results = collection.query(
+        query_embeddings=[query_vector],
+        n_results=20
     )
 
-    return final
+    docs = results.get("documents", [[]])[0]
+    metas = results.get("metadatas", [[]])[0]
+
+    documents = [
+        Document(
+            page_content=text,
+            metadata=meta or {}
+        )
+        for text, meta in zip(docs, metas)
+    ]
+
+    reranked = llm_rerank(query, documents, top_n=10)
+
+    return reranked[:final_k]
