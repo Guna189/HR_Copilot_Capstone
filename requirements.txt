@@ -33,3 +33,4 @@ plotly.express
 langgraph
 faiss-cpu
 langchain_openai
+langchain_groq
