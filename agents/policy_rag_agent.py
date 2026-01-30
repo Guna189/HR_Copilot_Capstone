@@ -4,6 +4,7 @@ from langchain_ollama import OllamaEmbeddings
 from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
 from llm import llm
+import os
 
 # ---------------- CONFIG ----------------
 CHROMA_API_KEY = os.getenv("CHROMA_API_KEY")
