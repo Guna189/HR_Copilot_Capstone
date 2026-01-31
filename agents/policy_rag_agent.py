@@ -4,37 +4,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
 from llm import llm
 import os
-<<<<<<< HEAD
 from google import genai
-=======
-from ollama import embed
-
-OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
-if OLLAMA_API_KEY is None:
-    raise ValueError("OLLAMA_API_KEY not set! Use .env or Streamlit secrets.")
-
-# initialize Ollama hosted API client
-class OllamaEmbeddingsHosted:
-    def __init__(self, model: str):
-        self.model = model
-
-    def embed_query(self, text: str):
-        response = embed(
-            model=self.model,
-            input=text
-        )
-        return response["embeddings"][0]
-
-    def embed_documents(self, texts: list[str]):
-        response = embed(
-            model=self.model,
-            input=texts
-        )
-        return response["embeddings"]
-
-# Use this in your code
-embeddings = OllamaEmbeddingsHosted(model="nomic-embed-text")
->>>>>>> c93a508885f0f25207166bf1940fb2d8fac200c2
 
 # ---------------- CONFIG ----------------
 CHROMA_API_KEY = os.getenv("CHROMA_API_KEY")
