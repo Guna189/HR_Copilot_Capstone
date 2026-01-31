@@ -4,56 +4,40 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
 from llm import llm
 import os
-<<<<<<< HEAD
-from ollama import embed
-
-OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
-if OLLAMA_API_KEY is None:
-    raise ValueError("OLLAMA_API_KEY not set! Use .env or Streamlit secrets.")
-
-# initialize Ollama hosted API client
-class OllamaEmbeddingsHosted:
-    def __init__(self, model: str):
-        self.model = model
-
-    def embed_query(self, text: str):
-        response = embed(
-            model=self.model,
-            input=text
-        )
-        return response["embeddings"][0]
-
-    def embed_documents(self, texts: list[str]):
-        response = embed(
-            model=self.model,
-            input=texts
-        )
-        return response["embeddings"]
-
-# Use this in your code
-embeddings = OllamaEmbeddingsHosted(model="nomic-embed-text")
-
-=======
->>>>>>> 7ed1c1c10dd23cfb6a3774d6961d3b94344814f5
+from google import genai
 
 # ---------------- CONFIG ----------------
 CHROMA_API_KEY = os.getenv("CHROMA_API_KEY")
 CHROMA_TENANT = os.getenv("CHROMA_TENANT")
 CHROMA_DATABASE = "hr_manual"
-COLLECTION_NAME = "hr_policy_collection"
+COLLECTION_NAME = "hr_policy_collection_gemini"
 
-EMBED_MODEL = "nomic-embed-text"
-OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
+GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
+if GOOGLE_API_KEY is None:
+    raise ValueError("GOOGLE_API_KEY not set! Use .env or environment variables.")
 
-# Environment variable method (optional)
-os.environ["OLLAMA_API_KEY"] = OLLAMA_API_KEY
+# ---------------- GEMINI EMBEDDINGS ----------------
+class GeminiEmbeddings:
+    def __init__(self, model: str = "gemini-embedding-001"):
+        self.client = genai.Client(api_key=GOOGLE_API_KEY)
+        self.model = model
 
-# ---------------- EMBEDDINGS ----------------
-# embeddings = OllamaEmbeddings(
-#     model="nomic-embed-text",       # your model
-#     host="https://api.ollama.com",  # point to Ollama hosted API
-#     api_key=OLLAMA_API_KEY           # your hosted API key
-# )
+    def embed_query(self, text: str):
+        result = self.client.models.embed_content(
+            model=self.model,
+            contents=[text]
+        )
+        return result.embeddings[0].values  # list of floats
+
+    def embed_documents(self, texts: list[str]):
+        result = self.client.models.embed_content(
+            model=self.model,
+            contents=texts
+        )
+        return [e.values for e in result.embeddings]  # list of float lists
+
+# Initialize embeddings
+embeddings = GeminiEmbeddings()
 
 # ---------------- CHROMA CLOUD CLIENT ----------------
 client = chromadb.HttpClient(
@@ -95,9 +79,7 @@ def llm_rerank(query, docs, top_n=10):
     if not docs:
         return []
 
-    text = "\n\n".join(
-        f"[{i}] {d.page_content}" for i, d in enumerate(docs)
-    )
+    text = "\n\n".join(f"[{i}] {d.page_content}" for i, d in enumerate(docs))
 
     resp = rerank_chain.invoke({
         "query": query,
@@ -129,8 +111,10 @@ def retrieve_policies(query: str, final_k=5):
     4. Return top-k
     """
 
+    # Generate embedding for the query
     query_vector = embeddings.embed_query(query)
 
+    # Vector search in Chroma
     results = collection.query(
         query_embeddings=[query_vector],
         n_results=20
@@ -140,13 +124,11 @@ def retrieve_policies(query: str, final_k=5):
     metas = results.get("metadatas", [[]])[0]
 
     documents = [
-        Document(
-            page_content=text,
-            metadata=meta or {}
-        )
+        Document(page_content=text, metadata=meta or {})
         for text, meta in zip(docs, metas)
     ]
 
+    # Rerank with LLM
     reranked = llm_rerank(query, documents, top_n=10)
 
     return reranked[:final_k]
