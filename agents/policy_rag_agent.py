@@ -4,7 +4,6 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
 from llm import llm
 import os
-<<<<<<< HEAD
 from ollama import embed
 
 OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
@@ -32,9 +31,6 @@ class OllamaEmbeddingsHosted:
 
 # Use this in your code
 embeddings = OllamaEmbeddingsHosted(model="nomic-embed-text")
-
-=======
->>>>>>> 7ed1c1c10dd23cfb6a3774d6961d3b94344814f5
 
 # ---------------- CONFIG ----------------
 CHROMA_API_KEY = os.getenv("CHROMA_API_KEY")
