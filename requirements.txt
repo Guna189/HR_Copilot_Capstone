@@ -32,4 +32,9 @@ plotly
 plotly.express
 langgraph
 faiss-cpu
+<<<<<<< HEAD
 langchain_openai
+=======
+langchain_openai
+langchain_groq
+>>>>>>> 7ed1c1c10dd23cfb6a3774d6961d3b94344814f5
