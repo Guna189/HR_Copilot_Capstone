@@ -74,8 +74,12 @@ def build_graph():
 
 hr_graph = build_graph()
 
-def handle_query(query: str):
-    result = hr_graph.invoke({"query": query})
+def handle_query(query: str, chat_history: list):
+    result = hr_graph.invoke({
+        "query": query,
+        "chat_history": chat_history
+    })
+
     return {
         "intent": result["intent"],
         "answer": result["answer"],

@@ -2,34 +2,59 @@ import streamlit as st
 from orchestrator import handle_query
 
 st.set_page_config(page_title="HR CoPilot", layout="centered")
-st.title("HR CoPilot – Policy Reasoning Agent")
+st.title("💼 HR CoPilot – Policy Reasoning Agent")
 
-query = st.text_area(
-    "Enter employee query",
-    placeholder="e.g. How many casual leaves are allowed?"
-)
+# Initialize memory
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-if st.button("Submit"):
-    if not query.strip():
-        st.warning("Please enter a query.")
-    else:
+# Render chat history
+for msg in st.session_state.chat_history:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+# User input
+user_query = st.chat_input("Ask an HR question...")
+
+if user_query:
+    # Store user message
+    st.session_state.chat_history.append({
+        "role": "user",
+        "content": user_query
+    })
+
+    with st.chat_message("user"):
+        st.markdown(user_query)
+
+    with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
-            result = handle_query(query)
-            print("Result:\n\n\n\n",result)
+            result = handle_query(
+                query=user_query,
+                chat_history=st.session_state.chat_history
+            )
 
-        st.subheader("Response")
-
-        # If backend returns structured dict
+        # Format response
         if isinstance(result, dict):
-            st.write("**Answer:**")
-            st.write(result.get("answer", "No answer generated"))
+            answer = result.get("answer", "No answer generated")
 
-            st.write("**Confidence:**")
-            st.json(result.get("confidence", {}))
+            response_text = f"""
+**Answer:**  
+{answer}
 
-            st.write("**Sources (page numbers):**")
-            st.write(result.get("sources", []))
+**Confidence:**  
+- Score: {result['confidence'].get('confidence_score')}
+- Risk: {result['confidence'].get('risk_level')}
 
-        # If backend returns plain text
+**Sources:**  
+{', '.join(map(str, result.get('sources', [])))}
+"""
         else:
-            st.write(result)
+            response_text = str(result)
+
+        st.markdown(response_text)
+
+    # Store assistant message
+    st.session_state.chat_history.append({
+        "role": "assistant",
+        "content": response_text
+    })

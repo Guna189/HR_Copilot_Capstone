@@ -17,11 +17,19 @@ def case_node(state):
     return {"case": case}
 
 def reasoning_node(state):
+    recent_history = state.get("chat_history", [])[-4:]  # last 2 turns
+
+    history_text = "\n".join(
+        f"{m['role']}: {m['content']}" for m in recent_history
+    )
+
     answer = reason_decision(
         query=state["query"],
         policies=state["policies"],
-        case=state["case"]
+        case=state["case"],
+        chat_context=history_text
     )
+
     sources = list({p.metadata.get("page", "N/A") for p in state["policies"]})
     return {"answer": answer, "sources": sources}
 

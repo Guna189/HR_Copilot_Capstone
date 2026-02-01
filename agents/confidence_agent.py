@@ -1,5 +1,6 @@
 from langchain_core.prompts import PromptTemplate
 from llm import llm
+import json
 
 prompt = PromptTemplate(
     input_variables=["decision"],
@@ -30,4 +31,16 @@ Rule:
 chain = prompt | llm
 
 def evaluate_confidence(decision: str):
-    return chain.invoke({"decision": decision})
+    response = chain.invoke({"decision": decision})
+
+    raw = response.content if hasattr(response, "content") else str(response)
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {
+            "confidence_score": 0.0,
+            "risk_level": "High",
+            "explanation": "Failed to parse confidence output",
+            "response": raw
+        }
